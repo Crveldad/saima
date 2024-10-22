@@ -1,0 +1,25 @@
+#bills-container, #coins-container {
+    display: flex;
+    gap: 10px;
+}
+
+#bills-container img, #coins-container img {
+    width: 100px;
+    cursor: pointer;
+    border: 2px solid transparent;
+}
+
+#bills-container img:hover, #coins-container img:hover {
+    border-color: green;
+}
+
+
+.response {
+    margin: 0 40px;
+    padding: 12px;
+    width: max-content;
+    background-color: rgb(0, 0, 0);
+}
+#response{
+    color: #fff;
+}
