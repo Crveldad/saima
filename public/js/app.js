@@ -1,9 +1,27 @@
 document.addEventListener('DOMContentLoaded', () => {
-    let selectedCoins = {};
 
-    /** Monedas */
+    const paymentMethodSelect = document.getElementById('payment-method');
+    const cardPaymentDiv = document.getElementById('card-payment');
+    const cashPaymentDiv = document.getElementById('cash-payment');
+    const submitButton = document.getElementById('submit-btn');
+    const responseField = document.getElementById('response');
+    const totalField = document.getElementById('totalField');
+    const selectedCoins = {};
 
-    // Añadir event listeners a todas las imágenes
+    // Cambiar la interfaz según el método de pago seleccionado
+    paymentMethodSelect.addEventListener('change', (event) => {
+        if (event.target.value === 'card') {
+            cardPaymentDiv.style.display = 'block';
+            cashPaymentDiv.style.display = 'none';
+            response.innerText = '';
+        } else if (event.target.value === 'cash') {
+            cardPaymentDiv.style.display = 'none';
+            cashPaymentDiv.style.display = 'block';
+            response.innerText = '';
+        }
+    });
+
+    // Manejar la selección de billetes y monedas
     document.querySelectorAll('#bills-container img, #coins-container img').forEach(img => {
         img.addEventListener('click', () => {
             let value = img.getAttribute('data-value');
@@ -15,53 +33,36 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectedCoins[value] = 1;
             }
 
+            updateTotal(); // Actualiza el total al seleccionar
             console.log(selectedCoins); // Para ver la construcción del JSON
         });
     });
 
-    let coinQuantities = {}; // Para almacenar las cantidades de monedas/billetes seleccionadas
-    let totalAmount = 0; // Para llevar el total acumulado
-
-    const updateTotal = () => {
-        const totalField = document.getElementById('totalField');
-        totalField.textContent = "Total: " + (totalAmount / 100).toFixed(2) + "€"; // Mostrar en formato 0.00€
-    };
-
-    const handleCoinClick = (coinValue) => {
-        if (coinQuantities[coinValue]) {
-            coinQuantities[coinValue]++;
-        } else {
-            coinQuantities[coinValue] = 1;
+    // Actualizar el total
+    function updateTotal() {
+        let total = 0;
+        for (let value in selectedCoins) {
+            total += value * selectedCoins[value];
         }
+        totalField.innerText = `Total: ${(total / 100).toFixed(2)}€`; // Convertir céntimos a euros
+    }
 
-        totalAmount += coinValue; // Sumar el valor de la moneda/billete al total
-        updateTotal(); // Actualizar el campo del total
-    };
+    // Enviar datos al hacer clic en el botón de enviar
+    submitButton.addEventListener('click', () => {
+        const amount = parseFloat(document.getElementById('amount').value) * 100; // Convertir a céntimos
+        const paymentType = paymentMethodSelect.value; // Obtener tipo de pago
 
-    // Escucha los clics en las imágenes de billetes y monedas
-    document.querySelectorAll('.coin').forEach((coinElement) => {
-        const coinValue = parseInt(coinElement.getAttribute('data-value'), 10);
-        coinElement.addEventListener('click', () => handleCoinClick(coinValue));
-    });
-
-    // Enviar los datos al hacer clic en "Enviar Pago"
-    document.getElementById('submit-btn').addEventListener('click', () => {
-        let cardNum = document.getElementById('card_num').value;
-        let amount = document.getElementById('amount').value;
-
-        if (cardNum === "" || amount === "") {
-            alert("Por favor, rellena todos los campos.");
+        // Crear el JSON para el envío
+        let paymentData;
+        if (paymentType === 'card') {
+            const cardNum = document.getElementById('card_num').value;
+            paymentData = { amount, currency: 'eur', card_num: cardNum };
+        } else if (paymentType === 'cash') {
+            paymentData = { amount, currency: 'eur', coin_types: selectedCoins };
+        } else {
+            alert('Por favor, selecciona un método de pago.');
             return;
         }
-
-        /* LLAMADA API */
-
-        // Crear el JSON
-        let paymentData = {
-            card_num: cardNum,
-            amount: amount,
-            coin_types: selectedCoins
-        };
 
         // Enviar los datos a la API
         fetch('../api/payment.php', {
@@ -73,14 +74,12 @@ document.addEventListener('DOMContentLoaded', () => {
         })
             .then(response => response.json())
             .then(data => {
-                console.log(data);
-                //alert(`Respuesta: `+JSON.stringify(data));
-                document.getElementById('response').innerText = JSON.stringify(data, null, 2);
-
+                responseField.innerText = JSON.stringify(data, null, 2); // Mostrar respuesta
             })
             .catch(error => {
-                console.error('Error en la petición:', error);
-                alert('Error en la petición');
+                console.error('Error:', error);
             });
     });
+
 });
+
