@@ -13,12 +13,9 @@
     border-color: green;
 }
 
-
 .response {
-    margin: 0 40px;
-    padding: 12px;
-    width: max-content;
     background-color: rgb(0, 0, 0);
+    padding: 10px 10px 1px 10px;
 }
 #response{
     color: #fff;

@@ -5,12 +5,11 @@ require_once __DIR__ . '/../utils/ChangeCalculator.php';
 require_once __DIR__ . '/../vendor/bank.php';
 require_once __DIR__ . '/../../config/db.php';
 
-
 class PaymentController
 {
     public function handleCardPayment($data)
     {
-        // Verificamos que los campos requeridos estén presentes
+        // verificamos que los campos requeridos estén presentes
         if (!isset($data['card_num']) || !isset($data['amount'])) {
             return [
                 "success" => false,
@@ -18,7 +17,7 @@ class PaymentController
             ];
         }
 
-        // Validamos el número de tarjeta
+        // validamos el número de tarjeta
         $cardNumber = $data['card_num'];
         if (!LuhnValidator::validate($cardNumber)) {
             return [
@@ -27,23 +26,30 @@ class PaymentController
             ];
         }
 
-        // Simulación de respuesta del banco
+        // simulación de respuesta del banco
         $response = simulateBankResponse($data['amount']);
-        //return $response;
 
         if ($response['success']) {
             // Insertar en TransaccionTarjeta
-            $tarjetaId = $this->insertCardTransaction($cardNumber, $response['message']);
+            $tarjetaInsert = $this->insertCardTransaction($cardNumber, $response['message']);
 
-            // Insertar en Transaccion
-            $transactionId = $this->insertTransaction($data['amount'], 'ok', $tarjetaId);
+            if ($tarjetaInsert['success']) {
+                // insertar en Transaccion (estado 'ok')
+                $transactionId = $this->insertTransaction($data['amount'], 'ok', $tarjetaInsert['id']);
 
-            return [
-                "success" => true,
-                "transaction_id" => $transactionId
-            ];
+                return [
+                    "success" => true,
+                    "message" => "Pago con tarjeta procesado correctamente. ",
+                    "transaction_id" => $transactionId
+                ];
+            } else {
+                return [
+                    "success" => false,
+                    "message" => $tarjetaInsert['message']
+                ];
+            }
         } else {
-            // Insertar en Transaccion (con estado ko)
+            // insertar en Transaccion (estado 'ko')
             $transactionId = $this->insertTransaction($data['amount'], 'ko');
 
             return [
@@ -54,10 +60,9 @@ class PaymentController
         }
     }
 
-
     public function handleCashPayment($data)
     {
-        // Verificamos que los campos requeridos estén presentes
+        // verificamos que los campos requeridos estén presentes
         if (!isset($data['coin_types']) || !isset($data['amount'])) {
             return [
                 "success" => false,
@@ -65,73 +70,122 @@ class PaymentController
             ];
         }
 
-        // Si el método se llama correctamente, calculamos el cambio
+        // si el método se llama correctamente, calculamos el cambio
         $amount = $data['amount'];
         $coinTypes = $data['coin_types'];
         $changeCalculator = new ChangeCalculator();
         $change = $changeCalculator->calculate($amount, $coinTypes);
 
-        //return $change;
-        // Suponiendo que también quieras insertar en la base de datos
-        $efectivoId = $this->insertCashTransaction($coinTypes, $change);
+        if (!$change['success']) {
+            // si el cambio es incorrecto, guardamos la transacción como 'ko'
+            $transactionId = $this->insertTransaction($amount, 'ko', null, null);
 
-        // Insertar en Transaccion (asumiendo que el estado es 'ok')
-        $transactionId = $this->insertTransaction($amount, 'ok', null, $efectivoId);
+            return [
+                "success" => false,
+                "message" => "Error en el pago en efectivo. Cambio incorrecto.",
+                "transaction_id" => $transactionId
+            ];
+        }
 
-        return [
-            "success" => true,
-            "change" => $change,
-            "transaction_id" => $transactionId
-        ];
+        // si el cambio es correcto, guardamos la transacción como 'ok'
+        $efectivoInsert = $this->insertCashTransaction($coinTypes, $change);
+
+        if ($efectivoInsert['success']) {
+            $transactionId = $this->insertTransaction($amount, 'ok', null, $efectivoInsert['id']);
+
+            return [
+                "success" => true,
+                "change" => $change,
+                "transaction_id" => $transactionId
+            ];
+        } else {
+            return [
+                "success" => false,
+                "message" => $efectivoInsert['message']
+            ];
+        }
     }
 
     private function insertCardTransaction($cardNumber, $responseMessage)
     {
-        global $pdo; // Asegúrate de que $pdo esté accesible
+        global $pdo;
 
         $sql = "INSERT INTO TransaccionTarjeta (numeroTarjeta, respuestaBanco) 
                 VALUES (:numeroTarjeta, :respuestaBanco)";
 
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([
-            ':numeroTarjeta' => $cardNumber,
-            ':respuestaBanco' => (bool) $responseMessage // Guarda como true/false
-        ]);
+        if (
+            $stmt->execute([
+                ':numeroTarjeta' => $cardNumber,
+                ':respuestaBanco' => (bool) $responseMessage
+            ])
+        ) {
+            return [
+                "success" => true,
+                "message" => "Transacción de tarjeta guardada correctamente.",
+                "id" => $pdo->lastInsertId()
+            ];
+        }
 
-        return $pdo->lastInsertId(); // Retorna el ID de la última inserción
+        return [
+            "success" => false,
+            "message" => "Error al guardar la transacción de tarjeta."
+        ];
     }
 
     private function insertCashTransaction($coinTypes, $change)
     {
-        global $pdo; // Asegúrate de que $pdo esté accesible
+        global $pdo;
 
         $sql = "INSERT INTO TransaccionEfectivo (monedas, devolucion) 
                 VALUES (:monedas, :devolucion)";
 
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([
-            ':monedas' => json_encode($coinTypes), // Guarda las monedas como JSON
-            ':devolucion' => $change // Guarda la devolución
-        ]);
+        if (
+            $stmt->execute([
+                ':monedas' => json_encode($coinTypes),
+                ':devolucion' => $change['amount'] / 100
+            ])
+        ) {
+            return [
+                "success" => true,
+                "message" => "Transacción en efectivo guardada correctamente.",
+                "id" => $pdo->lastInsertId()
+            ];
+        }
 
-        return $pdo->lastInsertId(); // Retorna el ID de la última inserción
+        return [
+            "success" => false,
+            "message" => "Error al guardar la transacción en efectivo."
+        ];
     }
 
     private function insertTransaction($amount, $status, $tarjetaId = null, $efectivoId = null)
     {
-        global $pdo; // Asegúrate de que $pdo esté accesible
+        global $pdo;
 
         $sql = "INSERT INTO Transaccion (cantidad, status, transaccion_tarjeta_id, transaccion_efectivo_id) 
                 VALUES (:cantidad, :status, :transaccion_tarjeta_id, :transaccion_efectivo_id)";
 
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([
-            ':cantidad' => $amount,
-            ':status' => $status,
-            ':transaccion_tarjeta_id' => $tarjetaId,
-            ':transaccion_efectivo_id' => $efectivoId
-        ]);
+        if (
+            $stmt->execute([
+                ':cantidad' => $amount,
+                ':status' => $status,
+                ':transaccion_tarjeta_id' => $tarjetaId,
+                ':transaccion_efectivo_id' => $efectivoId
+            ])
+        ) {
+            return [
+                "success" => true,
+                "message" => "Transacción guardada correctamente.",
+                "id" => $pdo->lastInsertId()
+            ];
+        }
 
-        return $pdo->lastInsertId(); // Retorna el ID de la última inserción
+        return [
+            "success" => false,
+            "message" => "Error al guardar la transacción."
+        ];
     }
 }

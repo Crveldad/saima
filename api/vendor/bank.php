@@ -2,19 +2,20 @@
 
 function simulateBankResponse($amount)
 {
-    // Genera un número aleatorio entre 1 y 10
     $randomNumber = rand(1, 10);
 
-    // Simulamos un error en el 30% de los casos
-    if ($randomNumber <= 3) { // 30% de probabilidad de fallo
+    // simulamos un error en el 30% de los casos
+    if ($randomNumber <= 3) { 
         return [
             "success" => false,
-            "error" => 702 // Código de error simulado
+            "message" => 0,
+            "error" => 702 // código de error simulado
         ];
     }
 
-    // Si no falla, simula un éxito
+    // si no falla, simula un éxito
     return [
-        "success" => true
+        "success" => true,
+        "message" => 1
     ];
 }

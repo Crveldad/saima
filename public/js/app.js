@@ -8,51 +8,50 @@ document.addEventListener('DOMContentLoaded', () => {
     const totalField = document.getElementById('totalField');
     const selectedCoins = {};
 
-    // Cambiar la interfaz según el método de pago seleccionado
+    // cambia la interfaz según el método de pago seleccionado
     paymentMethodSelect.addEventListener('change', (event) => {
         if (event.target.value === 'card') {
             cardPaymentDiv.style.display = 'block';
             cashPaymentDiv.style.display = 'none';
-            response.innerText = '';
+            responseField.innerText = '';
         } else if (event.target.value === 'cash') {
             cardPaymentDiv.style.display = 'none';
             cashPaymentDiv.style.display = 'block';
-            response.innerText = '';
+            responseField.innerText = '';
         }
     });
 
-    // Manejar la selección de billetes y monedas
+    // maneja la selección de billetes y monedas
     document.querySelectorAll('#bills-container img, #coins-container img').forEach(img => {
         img.addEventListener('click', () => {
             let value = img.getAttribute('data-value');
 
-            // Si la moneda/billete ya está en el objeto, suma, sino, inicializa
+            // si la moneda/billete ya está en el objeto, suma, sino, inicializa
             if (selectedCoins[value]) {
                 selectedCoins[value]++;
             } else {
                 selectedCoins[value] = 1;
             }
 
-            updateTotal(); // Actualiza el total al seleccionar
-            console.log(selectedCoins); // Para ver la construcción del JSON
+            updateTotal(); // actualiza el total al seleccionar
+            console.log(selectedCoins);
         });
     });
 
-    // Actualizar el total
     function updateTotal() {
         let total = 0;
         for (let value in selectedCoins) {
             total += value * selectedCoins[value];
         }
-        totalField.innerText = `Total: ${(total / 100).toFixed(2)}€`; // Convertir céntimos a euros
+        totalField.innerText = "Total: " + (total / 100).toFixed(2) + "€"; // convierte céntimos a euros
     }
 
-    // Enviar datos al hacer clic en el botón de enviar
+    // envía datos al darle en el botón de enviar
     submitButton.addEventListener('click', () => {
-        const amount = parseFloat(document.getElementById('amount').value) * 100; // Convertir a céntimos
-        const paymentType = paymentMethodSelect.value; // Obtener tipo de pago
+        const amount = parseFloat(document.getElementById('amount').value) * 100; // convierte a céntimos
+        const paymentType = paymentMethodSelect.value; // obtener tipo de pago
 
-        // Crear el JSON para el envío
+        // crea el JSON para el envío
         let paymentData;
         if (paymentType === 'card') {
             const cardNum = document.getElementById('card_num').value;
@@ -60,11 +59,11 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (paymentType === 'cash') {
             paymentData = { amount, currency: 'eur', coin_types: selectedCoins };
         } else {
-            alert('Por favor, selecciona un método de pago.');
+            alert("Por favor, selecciona un método de pago.");
             return;
         }
 
-        // Enviar los datos a la API
+        // envía los datos a la API
         fetch('../api/payment.php', {
             method: 'POST',
             headers: {
@@ -74,12 +73,23 @@ document.addEventListener('DOMContentLoaded', () => {
         })
             .then(response => response.json())
             .then(data => {
-                responseField.innerText = JSON.stringify(data, null, 2); // Mostrar respuesta
+                console.log(data);
+                if (data.success) {
+                    if (paymentType === 'cash') {
+                        // si es un pago en efectivo, mostramos el cambio
+                        responseField.innerText = "Pago exitoso. Cambio: " + data.change.amount + "€. ID Transacción: " + data.transaction_id.id;
+                    } else {
+                        // si es un pago con tarjeta
+                        responseField.innerText = "Pago con tarjeta exitoso. ID Transacción: " + data.transaction_id.id;
+                    }
+                } else {
+                    responseField.innerText = "Error: " + data.message;
+                }
             })
             .catch(error => {
-                console.error('Error:', error);
+                console.error("Error:", error);
+                responseField.innerText = "Hubo un error al procesar el pago.";
             });
     });
 
 });
-

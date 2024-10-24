@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS TransaccionTarjeta (
 CREATE TABLE IF NOT EXISTS TransaccionEfectivo (
     id INT AUTO_INCREMENT PRIMARY KEY,
     monedas TEXT NOT NULL,
-    devolucion TEXT NOT NULL
+    devolucion FLOAT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS Transaccion (
@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS Transaccion (
     status ENUM('ok', 'ko') NOT NULL,
     transaccion_tarjeta_id INT DEFAULT NULL,
     transaccion_efectivo_id INT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (transaccion_tarjeta_id) REFERENCES TransaccionTarjeta(id),
     FOREIGN KEY (transaccion_efectivo_id) REFERENCES TransaccionEfectivo(id)
 );

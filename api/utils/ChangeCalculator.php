@@ -1,6 +1,6 @@
 <?php
 
-const COINS = [200, 100, 50, 20, 10, 5, 2, 1];
+const COINS = [200, 100, 50, 20, 10, 5, 2, 1]; // las monedas que puede devolver en céntimos
 
 class ChangeCalculator
 {
@@ -33,7 +33,6 @@ class ChangeCalculator
     {
         $totalPaid = $this->coinTypesToAmount($coinTypes);
 
-        // Lo pasamos todo a céntimos
         $change = $totalPaid - $targetAmount;
 
         if ($change < 0) {
