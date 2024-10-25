@@ -77,7 +77,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.success) {
                     if (paymentType === 'cash') {
                         // si es un pago en efectivo, mostramos el cambio
-                        responseField.innerText = "Pago exitoso. Cambio: " + data.change.amount + "€. ID Transacción: " + data.transaction_id.id;
+                        const coinTypesString = JSON.stringify(data.change.coin_types);
+                        responseField.innerText = "Pago exitoso. Cambio: " + (data.change.amount/100) + "€. " + coinTypesString + ". ID Transacción: " + data.transaction_id.id;
                     } else {
                         // si es un pago con tarjeta
                         responseField.innerText = "Pago con tarjeta exitoso. ID Transacción: " + data.transaction_id.id;
