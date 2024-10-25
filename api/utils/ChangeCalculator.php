@@ -46,7 +46,7 @@ class ChangeCalculator
             return [
                 "success" => true,
                 "message" => "No hay cambio a devolver.",
-                "change" => 0
+                "amount" => 0
             ];
         }
 
